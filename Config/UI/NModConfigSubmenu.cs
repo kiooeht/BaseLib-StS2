@@ -1,4 +1,5 @@
 ﻿using BaseLib.Extensions;
+using BaseLib.Utils;
 using Godot;
 using HarmonyLib;
 using MegaCrit.Sts2.addons.mega_text;
@@ -14,20 +15,21 @@ namespace BaseLib.Config.UI;
 [HarmonyPatch(typeof(NMainMenuSubmenuStack), nameof(NMainMenuSubmenuStack.GetSubmenuType), typeof(Type))]
 public static class InjectModConfigSubmenuPatch
 {
-    private static NModConfigSubmenu? _modConfigSubmenu;
+    private static readonly SpireField<NMainMenuSubmenuStack, NModConfigSubmenu> SubmenuField = new(CreateSubmenu);
 
-    [HarmonyPrefix]
+    private static NModConfigSubmenu CreateSubmenu(NMainMenuSubmenuStack stack)
+    {
+        var menu = new NModConfigSubmenu();
+        menu.Visible = false;
+        stack.AddChildSafely(menu);
+        return menu;
+    }
+
     public static bool Prefix(NMainMenuSubmenuStack __instance, Type type, ref NSubmenu __result)
     {
         if (type != typeof(NModConfigSubmenu)) return true;
 
-        if (_modConfigSubmenu == null)
-        {
-            _modConfigSubmenu = new NModConfigSubmenu();
-            _modConfigSubmenu.Visible = false;
-            __instance.AddChildSafely(_modConfigSubmenu);
-        }
-        __result = _modConfigSubmenu;
+        __result = SubmenuField.Get(__instance)!;
         return false;
     }
 }
