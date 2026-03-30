@@ -77,7 +77,7 @@ public static class Amount2Cmd
         bool silent = false
     )
     {
-        Amount2CmdPatch.Amount2Store.Add(power, new Amount2CmdPatch.DecimalWrapper(amount2));
+        Amount2CmdPatch.Amount2Store.Add(power, new Amount2CmdPatch.Amount2Wrapper(amount2));
         await PowerCmd.Apply(power, target, amount, applier, cardSource, silent);
     }
 }
@@ -85,13 +85,15 @@ public static class Amount2Cmd
 [HarmonyPatch(typeof(PowerModel), nameof(PowerModel.ApplyInternal))]
 internal static class Amount2CmdPatch
 {
-    internal class DecimalWrapper
+    internal class Amount2Wrapper
     {
-        internal DecimalWrapper(decimal value) => Value = value;
-        internal decimal Value { get; }
+        internal Amount2Wrapper(decimal value) => Value = value;
+        internal decimal Value { get; set; }
+        internal IEnumerable<AbstractModel>? GivenModifiers { get; set; }
+        internal IEnumerable<AbstractModel>? ReceivedModifiers { get; set; }
     }
     
-    internal static ConditionalWeakTable<PowerModel, DecimalWrapper> Amount2Store = new();
+    internal static ConditionalWeakTable<PowerModel, Amount2Wrapper> Amount2Store = new();
 
     [HarmonyTranspiler]
     static IEnumerable<CodeInstruction> InsertSetAmount2(IEnumerable<CodeInstruction> instructions)
@@ -118,8 +120,7 @@ internal static class Amount2CmdPatch
         if (powerModel is not ITwoAmountPower twoAmountPower) return;
 
         if (Amount2Store.TryGetValue(powerModel, out var amount2Wrapper)) {
-            Amount2Store.Remove(powerModel);
-            // twoAmountPower.SetAmount2((int) amount2.Value);
+            // Amount2Store.Remove(powerModel);
             var amount2 = (int) amount2Wrapper.Value;
             
             powerModel.AssertMutable();
@@ -131,7 +132,6 @@ internal static class Amount2CmdPatch
             }
 
             twoAmountPower.Amount2 = amount2;
-            // twoAmountPower.SetAmount2Impl(amount2);
             twoAmountPower.InvokeDisplayAmount2Changed();
             powerModel.Owner.InvokePowerModified(powerModel, change, silent);
         }
